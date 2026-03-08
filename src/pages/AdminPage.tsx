@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createTrip, getAllTrips, deleteTrip } from '../api/tripApi'
+import { createTrip, getAllTrips, deleteTrip, getTrip, updateTrip } from '../api/tripApi'
 import type { Trip } from '../../shared/types/trip'
 import type { Member } from '../../shared/types/member'
 import type { TripListItem } from '../../shared/types/tripListItem'
@@ -27,6 +27,8 @@ function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [trips, setTrips] = useState<TripListItem[]>([])
   const [isLoadingTrips, setIsLoadingTrips] = useState(false)
+  const [selectedTripForEdit, setSelectedTripForEdit] = useState<Trip | null>(null)
+  const [isLoadingTrip, setIsLoadingTrip] = useState(false)
   
   // トースト通知フック（要件: 10.5）
   const { toasts, showError, showSuccess, hideToast } = useToast()
@@ -135,7 +137,60 @@ function AdminPage() {
   // 新しい旅行を作成
   const handleCreateNewTrip = () => {
     setCreatedTrip(null)
+    setSelectedTripForEdit(null)
+    setMembers([])
     setTripNameError('')
+  }
+
+  // 旅行を選択してメンバー追加モードに切り替え
+  const handleSelectTripForEdit = async (tripId: string) => {
+    setIsLoadingTrip(true)
+    try {
+      const trip = await getTrip(tripId)
+      setSelectedTripForEdit(trip)
+      setMembers([...trip.members])
+      setCreatedTrip(null)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '旅行の取得に失敗しました')
+    } finally {
+      setIsLoadingTrip(false)
+    }
+  }
+
+  // 既存旅行にメンバーを追加
+  const handleUpdateTripMembers = async () => {
+    if (!selectedTripForEdit) return
+
+    if (members.length === 0) {
+      showError('少なくとも1人のメンバーが必要です')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const updatedTrip: Trip = {
+        ...selectedTripForEdit,
+        members,
+        version: selectedTripForEdit.version + 1,
+        updatedAt: new Date().toISOString()
+      }
+      
+      await updateTrip(updatedTrip)
+      showSuccess('メンバーを更新しました')
+      setSelectedTripForEdit(null)
+      setMembers([])
+      await loadTrips()
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'メンバーの更新に失敗しました')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // メンバー追加モードをキャンセル
+  const handleCancelEdit = () => {
+    setSelectedTripForEdit(null)
+    setMembers([])
   }
 
   return (
@@ -146,17 +201,173 @@ function AdminPage() {
       <h1>SpliTrip - 管理ページ</h1>
 
       {/* 旅行一覧表示（要件: 1.1, 2.1） */}
-      {!createdTrip && (
+      {!createdTrip && !selectedTripForEdit && (
         <div style={{ marginBottom: '40px' }}>
           {isLoadingTrips ? (
             <p>読み込み中...</p>
           ) : (
-            <TripListComponent trips={trips} onDelete={handleDeleteTrip} />
+            <>
+              <TripListComponent trips={trips} onDelete={handleDeleteTrip} />
+              <div style={{ marginTop: '20px' }}>
+                <h3>既存の旅行にメンバーを追加</h3>
+                <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+                  旅行を選択してメンバーを追加できます
+                </p>
+                {trips.length > 0 ? (
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleSelectTripForEdit(e.target.value)
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: '16px',
+                      borderRadius: '8px',
+                      border: '1px solid #ccc',
+                      minHeight: '44px'
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="">旅行を選択...</option>
+                    {trips.map((trip) => (
+                      <option key={trip.tripId} value={trip.tripId}>
+                        {trip.tripName} ({trip.memberCount}人)
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ fontSize: '14px', color: '#999' }}>
+                    旅行がありません
+                  </p>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
 
-      {!createdTrip ? (
+      {isLoadingTrip ? (
+        <p>読み込み中...</p>
+      ) : selectedTripForEdit ? (
+        <>
+          {/* 既存旅行のメンバー追加フォーム */}
+          <div style={{ marginBottom: '30px' }}>
+            <h2>{selectedTripForEdit.tripName} - メンバー管理</h2>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
+              現在のメンバー数: {selectedTripForEdit.members.length}人
+            </p>
+          </div>
+
+          {/* メンバー登録フォーム */}
+          <div style={{ marginBottom: '30px' }}>
+            <h3>メンバーを追加</h3>
+            <MemberInputComponent 
+              existingMemberCount={members.length}
+              onAddMember={handleAddMember}
+            />
+
+            {/* メンバーリスト */}
+            {members.length > 0 && (
+              <div>
+                <h3>メンバー一覧 ({members.length}人)</h3>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {members.map((member, index) => (
+                    <li
+                      key={index}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 16px',
+                        marginBottom: '8px',
+                        backgroundColor: '#f5f5f5',
+                        borderRadius: '8px',
+                        minHeight: '44px'
+                      }}
+                    >
+                      <span style={{ fontSize: '16px' }}>
+                        {member.name} (比率: {member.defaultRatio})
+                      </span>
+                      <button
+                        onClick={() => handleRemoveMember(index)}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          backgroundColor: '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          minHeight: '36px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f44336'}
+                      >
+                        削除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* 更新・キャンセルボタン */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={handleUpdateTripMembers}
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                padding: '14px',
+                fontSize: '18px',
+                backgroundColor: isLoading ? '#ccc' : '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                minHeight: '52px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.backgroundColor = '#1976D2'
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) e.currentTarget.style.backgroundColor = '#2196F3'
+              }}
+            >
+              {isLoading ? '更新中...' : 'メンバーを更新'}
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                padding: '14px',
+                fontSize: '18px',
+                backgroundColor: '#757575',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                minHeight: '52px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.backgroundColor = '#616161'
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) e.currentTarget.style.backgroundColor = '#757575'
+              }}
+            >
+              キャンセル
+            </button>
+          </div>
+        </>
+      ) : !createdTrip ? (
         <>
           {/* 旅行作成フォーム */}
           <div style={{ marginBottom: '30px' }}>
