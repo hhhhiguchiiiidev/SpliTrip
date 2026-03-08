@@ -60,6 +60,12 @@ npx wrangler kv:namespace create "TRIPS_KV" --preview
 
 ## 4. 環境変数の設定
 
+`.env.example`ファイルをコピーして`.env.local`ファイルを作成します：
+
+```bash
+cp .env.example .env.local
+```
+
 `.env.local`ファイルを編集して、以下の値を設定します：
 
 ```env
@@ -75,6 +81,8 @@ TRIPS_KV_PREVIEW_ID=your-actual-preview-kv-namespace-id
 ADMIN_EMAIL=your-email@example.com
 ADMIN_NAME=Your Name
 ```
+
+**注意**: `.env.local`ファイルは`.gitignore`に含まれており、Gitで管理されません。機密情報を含むため、絶対にコミットしないでください。
 
 ## 5. wrangler.tomlの設定
 
