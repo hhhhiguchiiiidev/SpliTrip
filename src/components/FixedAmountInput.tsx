@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Member } from '../../shared/types/member'
 import type { SplitFixedInput } from '../../shared/types/receipt'
 
@@ -19,9 +20,14 @@ interface FixedAmountInputProps {
 }
 
 function FixedAmountInput({ members, fixedInputs, totalAmount, onChange }: FixedAmountInputProps) {
+  const [displayValues, setDisplayValues] = useState<Record<string, string>>({})
+
   const handleAmountChange = (memberId: string, value: string) => {
-    const numValue = parseFloat(value) || 0
+    // 表示用の値を更新
+    setDisplayValues(prev => ({ ...prev, [memberId]: value }))
     
+    // 数値に変換して親に通知
+    const numValue = parseFloat(value) || 0
     const updated = fixedInputs.map(input =>
       input.memberId === memberId
         ? { ...input, amount: numValue }
@@ -31,9 +37,50 @@ function FixedAmountInput({ members, fixedInputs, totalAmount, onChange }: Fixed
     onChange(updated)
   }
 
+  const handleFocus = (memberId: string) => {
+    const amount = getAmountForMember(memberId)
+    // フォーカス時、0なら空欄にする
+    if (amount === 0) {
+      setDisplayValues(prev => ({ ...prev, [memberId]: '' }))
+    } else {
+      setDisplayValues(prev => ({ ...prev, [memberId]: String(amount) }))
+    }
+  }
+
+  const handleBlur = (memberId: string) => {
+    const currentValue = displayValues[memberId]
+    // ブラー時、空欄なら0に戻す
+    if (!currentValue || currentValue.trim() === '') {
+      const updated = fixedInputs.map(input =>
+        input.memberId === memberId
+          ? { ...input, amount: 0 }
+          : input
+      )
+      onChange(updated)
+      setDisplayValues(prev => ({ ...prev, [memberId]: '' }))
+    } else {
+      // 表示値をクリア（実際の値を表示）
+      setDisplayValues(prev => {
+        const newValues = { ...prev }
+        delete newValues[memberId]
+        return newValues
+      })
+    }
+  }
+
   const getAmountForMember = (memberId: string): number => {
     const input = fixedInputs.find(f => f.memberId === memberId)
     return input?.amount ?? 0
+  }
+
+  const getDisplayValue = (memberId: string): string => {
+    // フォーカス中の表示値があればそれを使用
+    if (memberId in displayValues) {
+      return displayValues[memberId]
+    }
+    // それ以外は実際の値を表示
+    const amount = getAmountForMember(memberId)
+    return String(amount)
   }
 
   const totalFixed = fixedInputs.reduce((sum, input) => sum + input.amount, 0)
@@ -98,8 +145,11 @@ function FixedAmountInput({ members, fixedInputs, totalAmount, onChange }: Fixed
                 type="number"
                 min="0"
                 step="1"
-                value={getAmountForMember(member.id)}
+                value={getDisplayValue(member.id)}
                 onChange={(e) => handleAmountChange(member.id, e.target.value)}
+                onFocus={() => handleFocus(member.id)}
+                onBlur={() => handleBlur(member.id)}
+                placeholder="0"
                 style={{
                   width: '120px',
                   padding: '10px 12px',

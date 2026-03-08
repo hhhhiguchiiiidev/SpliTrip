@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Member } from '../../shared/types/member'
 import type { SplitRatioInput } from '../../shared/types/receipt'
 
@@ -17,9 +18,14 @@ interface RatioInputProps {
 }
 
 function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
+  const [displayValues, setDisplayValues] = useState<Record<string, string>>({})
+
   const handleRatioChange = (memberId: string, value: string) => {
-    const numValue = parseFloat(value) || 0
+    // 表示用の値を更新
+    setDisplayValues(prev => ({ ...prev, [memberId]: value }))
     
+    // 数値に変換して親に通知
+    const numValue = parseFloat(value) || 0
     const updated = ratioInputs.map(input =>
       input.memberId === memberId
         ? { ...input, ratio: numValue }
@@ -29,9 +35,50 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
     onChange(updated)
   }
 
+  const handleFocus = (memberId: string) => {
+    const ratio = getRatioForMember(memberId)
+    // フォーカス時、デフォルト値（100）なら空欄にする
+    if (ratio === 100) {
+      setDisplayValues(prev => ({ ...prev, [memberId]: '' }))
+    } else {
+      setDisplayValues(prev => ({ ...prev, [memberId]: String(ratio) }))
+    }
+  }
+
+  const handleBlur = (memberId: string) => {
+    const currentValue = displayValues[memberId]
+    // ブラー時、空欄ならデフォルト値（100）に戻す
+    if (!currentValue || currentValue.trim() === '') {
+      const updated = ratioInputs.map(input =>
+        input.memberId === memberId
+          ? { ...input, ratio: 100 }
+          : input
+      )
+      onChange(updated)
+      setDisplayValues(prev => ({ ...prev, [memberId]: '' }))
+    } else {
+      // 表示値をクリア（実際の値を表示）
+      setDisplayValues(prev => {
+        const newValues = { ...prev }
+        delete newValues[memberId]
+        return newValues
+      })
+    }
+  }
+
   const getRatioForMember = (memberId: string): number => {
     const input = ratioInputs.find(r => r.memberId === memberId)
     return input?.ratio ?? 100
+  }
+
+  const getDisplayValue = (memberId: string): string => {
+    // フォーカス中の表示値があればそれを使用
+    if (memberId in displayValues) {
+      return displayValues[memberId]
+    }
+    // それ以外は実際の値を表示
+    const ratio = getRatioForMember(memberId)
+    return String(ratio)
   }
 
   const totalRatio = ratioInputs.reduce((sum, input) => sum + input.ratio, 0)
@@ -71,8 +118,11 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
                 type="number"
                 min="0"
                 step="1"
-                value={getRatioForMember(member.id)}
+                value={getDisplayValue(member.id)}
                 onChange={(e) => handleRatioChange(member.id, e.target.value)}
+                onFocus={() => handleFocus(member.id)}
+                onBlur={() => handleBlur(member.id)}
+                placeholder="100"
                 style={{
                   width: '120px',
                   padding: '10px 12px',
