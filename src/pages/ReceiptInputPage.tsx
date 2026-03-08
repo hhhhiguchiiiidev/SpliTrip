@@ -529,13 +529,15 @@ function ReceiptInputPage() {
                 <span style={{ fontSize: '16px' }}>メンバーを選択</span>
               </label>
 
-              {/* サブグループ選択肢（要件: 6.1） */}
-              {trip.subgroups.length > 0 && (
-                <SubgroupSelector
-                  subgroups={trip.subgroups}
-                  selectedSubgroupId={selectedSubgroupId}
-                  onSelect={handleSubgroupSelect}
-                />
+              {/* サブグループ選択肢（要件: 6.1） - メンバーを選択時のみ表示 */}
+              {targetMode === 'selected' && trip.subgroups.length > 0 && (
+                <div style={{ marginLeft: '30px', marginTop: '10px' }}>
+                  <SubgroupSelector
+                    subgroups={trip.subgroups}
+                    selectedSubgroupId={selectedSubgroupId}
+                    onSelect={handleSubgroupSelect}
+                  />
+                </div>
               )}
             </div>
 
