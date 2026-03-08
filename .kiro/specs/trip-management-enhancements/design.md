@@ -20,6 +20,9 @@
 ┌─────────────────────────────────────┐
 │     フロントエンド (React)          │
 │  - AdminPage (拡張)                 │
+│    - 旅行一覧表示                   │
+│    - 旅行削除                       │
+│    - 既存旅行へのメンバー追加       │
 │  - TripPage (拡張)                  │
 │  - ReceiptInputPage (拡張)          │
 │  - 新規コンポーネント                │
@@ -143,6 +146,39 @@ export type TripListItem = {
   success: boolean
 }
 ```
+
+### 拡張コンポーネント
+
+#### AdminPage
+
+管理ページコンポーネントを拡張し、以下の機能を追加：
+
+**新機能:**
+1. **旅行一覧表示と削除**
+   - TripListComponentを統合
+   - 削除ボタンで旅行を削除
+   - 削除成功時にリストを更新
+
+2. **既存旅行へのメンバー追加**
+   - 旅行選択ドロップダウン
+   - 選択した旅行のメンバー管理画面
+   - メンバーの追加・削除
+   - 更新ボタンで変更を保存
+   - キャンセルボタンで編集を中止
+
+**状態管理:**
+```typescript
+{
+  selectedTripForEdit: Trip | null  // 編集中の旅行
+  isLoadingTrip: boolean            // 旅行読み込み中フラグ
+  // ... 既存の状態
+}
+```
+
+**新規ハンドラー:**
+- `handleSelectTripForEdit(tripId: string)`: 旅行を選択してメンバー管理画面に切り替え
+- `handleUpdateTripMembers()`: メンバーの変更を保存
+- `handleCancelEdit()`: 編集をキャンセル
 
 ### 新規コンポーネント
 
