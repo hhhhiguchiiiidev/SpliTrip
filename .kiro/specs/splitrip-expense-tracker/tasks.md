@@ -10,15 +10,15 @@
 
 ## タスク
 
-- [-] 0. 環境セットアップと準備
-  - [ ] 0.1 Gitリポジトリの初期化
+- [x] 0. 環境セットアップと準備
+  - [x] 0.1 Gitリポジトリの初期化
     - Gitリポジトリを初期化（git init）
     - .gitignoreファイルを作成
     - 初回コミットを実行
     - GitHubリポジトリを作成してリモートに接続
     - _要件: 全体_
   
-  - [ ] 0.2 環境設定ファイルの作成
+  - [x] 0.2 環境設定ファイルの作成
     - .env.localファイルを作成（テンプレートから）
     - config/project.config.jsonを作成
     - config/cloudflare.config.jsonを作成
@@ -26,7 +26,7 @@
     - docs/DEPLOYMENT.mdを作成（デプロイ手順を記載）
     - _要件: 全体_
   
-  - [ ] 0.3 Cloudflareアカウントのセットアップ（手動操作）
+  - [x] 0.3 Cloudflareアカウントのセットアップ（手動操作）
     - Cloudflareアカウントにログイン
     - Account IDを取得して.env.localに記録
     - API Tokenを生成して.env.localに記録
@@ -35,14 +35,14 @@
     - wrangler.tomlにKVネームスペースIDを設定
     - _要件: 全体_
   
-  - [ ] 0.4 Cloudflare Pagesプロジェクトの作成（手動操作）
+  - [x] 0.4 Cloudflare Pagesプロジェクトの作成（手動操作）
     - Cloudflare PagesでGitHubリポジトリを接続
     - ビルド設定を構成（ビルドコマンド、出力ディレクトリ）
     - 環境変数を設定（NODE_VERSION等）
     - KVバインディングを設定
     - _要件: 全体_
   
-  - [ ] 0.5 基本機能のテスト
+  - [x] 0.5 基本機能のテスト
     - ローカル開発サーバーを起動してアクセス確認
     - Wrangler CLIでKVへの読み書きテスト
     - テストデータをKVに保存・取得して動作確認

@@ -1,0 +1,19 @@
+{
+  "pages": {
+    "buildCommand": "npm run build",
+    "buildOutputDirectory": "dist",
+    "nodeVersion": "18"
+  },
+  "kv": {
+    "namespace": "TRIPS_KV",
+    "keyPrefix": "trip:"
+  },
+  "environment": {
+    "production": {
+      "url": "https://splitrip.pages.dev"
+    },
+    "preview": {
+      "url": "https://preview.splitrip.pages.dev"
+    }
+  }
+}

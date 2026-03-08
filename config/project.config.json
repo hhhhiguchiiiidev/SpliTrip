@@ -1,0 +1,19 @@
+{
+  "projectName": "SpliTrip",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hhhhiguchiiiidev/SpliTrip.git"
+  },
+  "cloudflare": {
+    "projectName": "splitrip",
+    "productionBranch": "main",
+    "previewBranch": "develop"
+  },
+  "features": {
+    "maxMembersPerTrip": 50,
+    "maxReceiptsPerTrip": 500,
+    "maxTripNameLength": 100,
+    "maxMemberNameLength": 50
+  }
+}
