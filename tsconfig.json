@@ -28,6 +28,6 @@
       "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["src", "shared", "functions", "tests"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "shared", "functions"],
+  "exclude": ["node_modules", "dist", "tests"]
 }
