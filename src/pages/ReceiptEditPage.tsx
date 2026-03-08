@@ -9,6 +9,7 @@ import MemberSelector from '../components/MemberSelector'
 import SplitModeSelector from '../components/SplitModeSelector'
 import RatioInput from '../components/RatioInput'
 import FixedAmountInput from '../components/FixedAmountInput'
+import SubgroupSelector from '../components/SubgroupSelector'
 
 /**
  * レシート編集ページコンポーネント
@@ -40,6 +41,7 @@ function ReceiptEditPage() {
   // Step2: 割り対象
   const [targetMode, setTargetMode] = useState<'all' | 'selected'>('all')
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
+  const [selectedSubgroupId, setSelectedSubgroupId] = useState<string | null>(null)
 
   // Step3: 配分方法
   const [splitMode, setSplitMode] = useState<'equal' | 'ratio' | 'fixed'>('equal')
@@ -285,9 +287,34 @@ function ReceiptEditPage() {
   // 対象モード変更時の処理
   const handleTargetModeChange = (mode: 'all' | 'selected') => {
     setTargetMode(mode)
+    setSelectedSubgroupId(null) // サブグループ選択をリセット
     
     if (mode === 'all' && trip) {
       setSelectedMemberIds(trip.members.map(m => m.id))
+    }
+  }
+
+  // サブグループ選択時の処理
+  const handleSubgroupSelect = (subgroupId: string | null) => {
+    setSelectedSubgroupId(subgroupId)
+    
+    if (subgroupId && trip) {
+      const subgroup = trip.subgroups.find(sg => sg.id === subgroupId)
+      if (subgroup) {
+        // サブグループのメンバーを事前選択
+        setSelectedMemberIds(subgroup.memberRatios.map(mr => mr.memberId))
+        
+        // 比率配分モードの場合、サブグループのデフォルト配布比率で比率入力を事前入力
+        if (splitMode === 'ratio') {
+          const targetMembers = trip.members.filter(m => 
+            subgroup.memberRatios.some(mr => mr.memberId === m.id)
+          )
+          setRatioInputs(targetMembers.map(m => {
+            const memberRatio = subgroup.memberRatios.find(mr => mr.memberId === m.id)
+            return { memberId: m.id, ratio: memberRatio?.ratio ?? m.defaultRatio }
+          }))
+        }
+      }
     }
   }
 
@@ -295,10 +322,24 @@ function ReceiptEditPage() {
   const handleSplitModeChange = (mode: 'equal' | 'ratio' | 'fixed') => {
     setSplitMode(mode)
     
-    // 比率入力の初期化（デフォルト100）
+    // 比率入力の初期化
     if (mode === 'ratio' && trip) {
       const targetMembers = getTargetMembers()
-      setRatioInputs(targetMembers.map(m => ({ memberId: m.id, ratio: 100 })))
+      
+      // サブグループが選択されている場合、サブグループのデフォルト配布比率を使用
+      if (selectedSubgroupId) {
+        const subgroup = trip.subgroups.find(sg => sg.id === selectedSubgroupId)
+        if (subgroup) {
+          setRatioInputs(targetMembers.map(m => {
+            const memberRatio = subgroup.memberRatios.find(mr => mr.memberId === m.id)
+            return { memberId: m.id, ratio: memberRatio?.ratio ?? m.defaultRatio }
+          }))
+          return
+        }
+      }
+      
+      // サブグループが選択されていない場合、メンバーのデフォルト配布比率を使用
+      setRatioInputs(targetMembers.map(m => ({ memberId: m.id, ratio: m.defaultRatio })))
     }
     
     // 金額指定入力の初期化
@@ -567,6 +608,17 @@ function ReceiptEditPage() {
                 />
                 <span style={{ fontSize: '16px' }}>メンバーを選択</span>
               </label>
+
+              {/* サブグループ選択肢 - メンバーを選択時のみ表示 */}
+              {targetMode === 'selected' && trip.subgroups.length > 0 && (
+                <div style={{ marginLeft: '30px', marginTop: '10px' }}>
+                  <SubgroupSelector
+                    subgroups={trip.subgroups}
+                    selectedSubgroupId={selectedSubgroupId}
+                    onSelect={handleSubgroupSelect}
+                  />
+                </div>
+              )}
             </div>
 
             {targetMode === 'selected' && (
