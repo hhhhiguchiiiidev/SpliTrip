@@ -65,20 +65,6 @@ function ReceiptListPage() {
     return (
       <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
         <p style={{ color: '#c00' }}>旅行が見つかりません</p>
-        <button
-          onClick={() => navigate('/admin')}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          管理ページへ
-        </button>
       </div>
     )
   }

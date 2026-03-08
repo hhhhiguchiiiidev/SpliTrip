@@ -26,7 +26,8 @@ describe('URL Generation Property Tests', () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               members: [],
-              receipts: []
+              receipts: [],
+              subgroups: []
             }
 
             // URL生成ロジック（AdminPageと同じ）

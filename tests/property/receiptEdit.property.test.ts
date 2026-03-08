@@ -29,7 +29,7 @@ describe('Receipt Edit Property Tests', () => {
               }),
               { minLength: 1, maxLength: 10 }
             ),
-            receipts: fc.array(
+            receipts: fc.uniqueArray(
               fc.record({
                 id: fc.string({ minLength: 1, maxLength: 10 }),
                 title: fc.option(fc.string({ minLength: 1, maxLength: 50 })),
@@ -48,7 +48,11 @@ describe('Receipt Edit Property Tests', () => {
                 createdAt: fc.constant(new Date().toISOString()),
                 updatedAt: fc.constant(new Date().toISOString())
               }),
-              { minLength: 0, maxLength: 50 }
+              {
+                minLength: 0,
+                maxLength: 50,
+                selector: (receipt) => receipt.id
+              }
             )
           }),
           (trip: Trip) => {

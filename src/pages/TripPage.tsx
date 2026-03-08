@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getTrip } from '../api/tripApi'
 import type { Trip } from '../../shared/types/trip'
+import UsageGuideModal from '../components/UsageGuideModal'
 
 /**
  * 旅行ページコンポーネント
@@ -16,6 +17,7 @@ function TripPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isGuideOpen, setIsGuideOpen] = useState(false)
 
   // 旅行データを取得
   useEffect(() => {
@@ -62,19 +64,6 @@ function TripPage() {
         }}>
           {error}
         </div>
-        <Link
-          to="/admin"
-          style={{
-            display: 'inline-block',
-            padding: '10px 20px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px'
-          }}
-        >
-          管理ページへ戻る
-        </Link>
       </div>
     )
   }
@@ -84,19 +73,6 @@ function TripPage() {
     return (
       <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
         <p>旅行が見つかりません</p>
-        <Link
-          to="/admin"
-          style={{
-            display: 'inline-block',
-            padding: '10px 20px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px'
-          }}
-        >
-          管理ページへ戻る
-        </Link>
       </div>
     )
   }
@@ -176,20 +152,51 @@ function TripPage() {
         >
           精算確認
         </Link>
-      </div>
 
-      {/* 管理ページへ戻るリンク */}
-      <div style={{ marginTop: '30px', textAlign: 'center' }}>
+        {/* サブグループ登録 */}
         <Link
-          to="/admin"
+          to={`/trip/${tripId}/subgroups`}
           style={{
-            color: '#666',
-            textDecoration: 'underline'
+            display: 'block',
+            padding: '20px',
+            backgroundColor: '#9C27B0',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            textAlign: 'center',
+            fontSize: '18px',
+            fontWeight: 'bold'
           }}
         >
-          管理ページへ戻る
+          サブグループ登録
         </Link>
+
+        {/* 使い方ボタン */}
+        <button
+          onClick={() => setIsGuideOpen(true)}
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '20px',
+            backgroundColor: '#607D8B',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            textAlign: 'center',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          使い方
+        </button>
       </div>
+
+      {/* 使い方ガイドモーダル */}
+      <UsageGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+      />
     </div>
   )
 }

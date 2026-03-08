@@ -1,42 +1,71 @@
-import { useState } from 'react'
-import { createTrip } from '../api/tripApi'
+import { useState, useEffect } from 'react'
+import { createTrip, getAllTrips, deleteTrip } from '../api/tripApi'
 import type { Trip } from '../../shared/types/trip'
+import type { Member } from '../../shared/types/member'
+import type { TripListItem } from '../../shared/types/tripListItem'
 import { useToast } from '../hooks/useToast'
 import ToastContainer from '../components/ToastContainer'
 import FormError from '../components/FormError'
+import TripListComponent from '../components/TripListComponent'
+import MemberInputComponent from '../components/MemberInputComponent'
 
 /**
  * 管理ページコンポーネント
- * 要件: 1.1, 1.3, 7.1
+ * 要件: 1.1, 1.3, 7.1, 2.3, 2.4, 2.5
  * 
  * 機能:
  * - 旅行作成フォーム
  * - メンバー登録フォーム
  * - 旅行URL表示
+ * - 旅行一覧表示と削除機能
  */
 function AdminPage() {
   const [tripName, setTripName] = useState('')
-  const [memberName, setMemberName] = useState('')
-  const [members, setMembers] = useState<{ name: string }[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [createdTrip, setCreatedTrip] = useState<Trip | null>(null)
   const [tripNameError, setTripNameError] = useState<string>('')
-  const [memberNameError, setMemberNameError] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
+  const [trips, setTrips] = useState<TripListItem[]>([])
+  const [isLoadingTrips, setIsLoadingTrips] = useState(false)
   
   // トースト通知フック（要件: 10.5）
   const { toasts, showError, showSuccess, hideToast } = useToast()
 
-  // メンバー追加ハンドラー
-  const handleAddMember = () => {
-    if (!memberName.trim()) {
-      setMemberNameError('メンバー名を入力してください')
-      return
+  // 旅行一覧を取得（要件: 1.1）
+  const loadTrips = async () => {
+    setIsLoadingTrips(true)
+    try {
+      const tripList = await getAllTrips()
+      setTrips(tripList)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '旅行一覧の取得に失敗しました')
+    } finally {
+      setIsLoadingTrips(false)
     }
+  }
 
-    setMembers([...members, { name: memberName.trim() }])
-    setMemberName('')
-    setMemberNameError('')
-    showSuccess(`${memberName.trim()} を追加しました`)
+  // 初回マウント時に旅行一覧を取得
+  useEffect(() => {
+    loadTrips()
+  }, [])
+
+  // 旅行削除ハンドラー（要件: 2.3, 2.4, 2.5）
+  const handleDeleteTrip = async (tripId: string) => {
+    try {
+      await deleteTrip(tripId)
+      showSuccess('旅行を削除しました')
+      // 削除成功時にリストを更新（要件: 2.4）
+      await loadTrips()
+    } catch (err) {
+      // 削除失敗時にエラーメッセージを表示（要件: 2.5）
+      showError(err instanceof Error ? err.message : '旅行の削除に失敗しました')
+    }
+  }
+
+  // メンバー追加ハンドラー（要件: 3.4）
+  const handleAddMember = (member: Member) => {
+    setMembers([...members, member])
+    showSuccess(`${member.name} を追加しました`)
   }
 
   // メンバー削除ハンドラー
@@ -70,7 +99,7 @@ function AdminPage() {
     try {
       const trip = await createTrip({
         tripName: tripName.trim(),
-        members
+        members: members.map(m => ({ name: m.name, defaultRatio: m.defaultRatio }))
       })
 
       setCreatedTrip(trip)
@@ -79,6 +108,8 @@ function AdminPage() {
       setTripName('')
       setMembers([])
       setTripNameError('')
+      // 旅行一覧を更新
+      await loadTrips()
     } catch (err) {
       showError(err instanceof Error ? err.message : 'サーバーエラーが発生しました')
     } finally {
@@ -105,7 +136,6 @@ function AdminPage() {
   const handleCreateNewTrip = () => {
     setCreatedTrip(null)
     setTripNameError('')
-    setMemberNameError('')
   }
 
   return (
@@ -114,6 +144,17 @@ function AdminPage() {
       <ToastContainer toasts={toasts} onClose={hideToast} />
       
       <h1>SpliTrip - 管理ページ</h1>
+
+      {/* 旅行一覧表示（要件: 1.1, 2.1） */}
+      {!createdTrip && (
+        <div style={{ marginBottom: '40px' }}>
+          {isLoadingTrips ? (
+            <p>読み込み中...</p>
+          ) : (
+            <TripListComponent trips={trips} onDelete={handleDeleteTrip} />
+          )}
+        </div>
+      )}
 
       {!createdTrip ? (
         <>
@@ -150,58 +191,13 @@ function AdminPage() {
             </div>
           </div>
 
-          {/* メンバー登録フォーム */}
+          {/* メンバー登録フォーム（要件: 3.1, 3.2） */}
           <div style={{ marginBottom: '30px' }}>
             <h2>メンバーを追加</h2>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 200px' }}>
-                <input
-                  type="text"
-                  value={memberName}
-                  onChange={(e) => {
-                    setMemberName(e.target.value)
-                    if (e.target.value.trim()) {
-                      setMemberNameError('')
-                    }
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddMember()
-                    }
-                  }}
-                  placeholder="メンバー名"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    fontSize: '16px',
-                    borderRadius: '8px',
-                    border: memberNameError ? '2px solid #f44336' : '1px solid #ccc',
-                    minHeight: '44px' // タッチフレンドリーな最小高さ
-                  }}
-                  aria-invalid={!!memberNameError}
-                />
-                {/* フォームエラー表示（要件: 10.5） */}
-                <FormError message={memberNameError} />
-              </div>
-              <button
-                onClick={handleAddMember}
-                style={{
-                  padding: '10px 20px',
-                  fontSize: '16px',
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  minHeight: '44px', // タッチフレンドリーな最小高さ
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
-              >
-                追加
-              </button>
-            </div>
+            <MemberInputComponent 
+              existingMemberCount={members.length}
+              onAddMember={handleAddMember}
+            />
 
             {/* メンバーリスト */}
             {members.length > 0 && (
@@ -222,7 +218,9 @@ function AdminPage() {
                         minHeight: '44px' // タッチフレンドリーな最小高さ
                       }}
                     >
-                      <span style={{ fontSize: '16px' }}>{member.name}</span>
+                      <span style={{ fontSize: '16px' }}>
+                        {member.name} (比率: {member.defaultRatio})
+                      </span>
                       <button
                         onClick={() => handleRemoveMember(index)}
                         style={{

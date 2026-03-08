@@ -5,7 +5,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "vitest/globals", "@testing-library/jest-dom"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -28,6 +28,6 @@
       "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["src", "shared", "functions"],
+  "include": ["src", "shared", "functions", "tests"],
   "exclude": ["node_modules", "dist"]
 }

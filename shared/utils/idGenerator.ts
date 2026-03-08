@@ -26,3 +26,12 @@ export function generateMemberId(existingMemberCount: number): string {
 export function generateReceiptId(existingReceiptCount: number): string {
   return `r${existingReceiptCount + 1}`
 }
+
+/**
+ * サブグループIDを生成する
+ * 形式: sg{連番}
+ * 例: sg1, sg2, sg3
+ */
+export function generateSubgroupId(existingSubgroupCount: number): string {
+  return `sg${existingSubgroupCount + 1}`
+}

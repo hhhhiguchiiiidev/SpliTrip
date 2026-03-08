@@ -27,6 +27,7 @@ describe('Property Tests: Ratio Default Values', () => {
           const members: Member[] = Array.from({ length: memberCount }, (_, i) => ({
             id: `m${i + 1}`,
             name: `メンバー${i + 1}`,
+            defaultRatio: 100,
             createdAt: new Date().toISOString()
           }))
 
@@ -70,6 +71,7 @@ describe('Property Tests: Ratio Default Values', () => {
           const members: Member[] = Array.from({ length: memberCount }, (_, i) => ({
             id: `m${i + 1}`,
             name: `メンバー${i + 1}`,
+            defaultRatio: 100,
             createdAt: new Date().toISOString()
           }))
 

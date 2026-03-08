@@ -1,4 +1,5 @@
 import { Trip } from '../../shared/types/trip'
+import { TripListItem } from '../../shared/types/tripListItem'
 
 /**
  * フロントエンドAPIクライアント
@@ -21,6 +22,13 @@ export type CreateTripRequest = {
  */
 export type ApiErrorResponse = {
   error: string
+}
+
+/**
+ * 旅行一覧レスポンスの型
+ */
+export type GetAllTripsResponse = {
+  trips: TripListItem[]
 }
 
 /**
@@ -54,6 +62,31 @@ export async function createTrip(request: CreateTripRequest): Promise<Trip> {
   }
 
   return await response.json()
+}
+
+/**
+ * GET /api/trips
+ * すべての旅行のリストを取得
+ * 要件: 1.1
+ * 
+ * @returns 旅行リスト（作成日時降順）
+ * @throws APIエラーが発生した場合
+ */
+export async function getAllTrips(): Promise<TripListItem[]> {
+  const response = await fetch(`${API_BASE_URL}/trips`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    const errorData: ApiErrorResponse = await response.json()
+    throw new Error(errorData.error || 'サーバーエラーが発生しました')
+  }
+
+  const data: GetAllTripsResponse = await response.json()
+  return data.trips
 }
 
 /**

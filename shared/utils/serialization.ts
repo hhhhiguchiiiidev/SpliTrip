@@ -1,6 +1,7 @@
 import { Trip } from '../types/trip'
 import { Member } from '../types/member'
 import { Receipt, SplitRatioInput, SplitFixedInput, SplitResult } from '../types/receipt'
+import { Subgroup, SubgroupMemberRatio } from '../types/subgroup'
 
 /**
  * シリアライゼーション: TypeScriptオブジェクト → JSON文字列
@@ -43,6 +44,9 @@ export function validateAndConvertTrip(data: any): Trip {
   if (!Array.isArray(data.receipts)) {
     throw new Error('Invalid trip data: receipts must be an array')
   }
+  if (!Array.isArray(data.subgroups)) {
+    throw new Error('Invalid trip data: subgroups must be an array')
+  }
   
   // メンバーの変換と検証
   const members: Member[] = data.members.map((m: any, index: number) => {
@@ -52,6 +56,9 @@ export function validateAndConvertTrip(data: any): Trip {
     if (!m.name || typeof m.name !== 'string') {
       throw new Error(`Invalid member at index ${index}: name is required`)
     }
+    if (typeof m.defaultRatio !== 'number' || m.defaultRatio <= 0) {
+      throw new Error(`Invalid member at index ${index}: defaultRatio must be a positive number`)
+    }
     if (!m.createdAt || typeof m.createdAt !== 'string') {
       throw new Error(`Invalid member at index ${index}: createdAt is required`)
     }
@@ -59,6 +66,7 @@ export function validateAndConvertTrip(data: any): Trip {
     return {
       id: m.id,
       name: m.name,
+      defaultRatio: m.defaultRatio,
       createdAt: m.createdAt
     }
   })
@@ -155,6 +163,48 @@ export function validateAndConvertTrip(data: any): Trip {
     }
   })
   
+  // サブグループの変換と検証
+  const subgroups: Subgroup[] = data.subgroups.map((sg: any, index: number) => {
+    if (!sg.id || typeof sg.id !== 'string') {
+      throw new Error(`Invalid subgroup at index ${index}: id is required`)
+    }
+    if (!sg.name || typeof sg.name !== 'string') {
+      throw new Error(`Invalid subgroup at index ${index}: name is required`)
+    }
+    if (!Array.isArray(sg.memberRatios)) {
+      throw new Error(`Invalid subgroup at index ${index}: memberRatios must be an array`)
+    }
+    if (!sg.createdAt || typeof sg.createdAt !== 'string') {
+      throw new Error(`Invalid subgroup at index ${index}: createdAt is required`)
+    }
+    if (!sg.updatedAt || typeof sg.updatedAt !== 'string') {
+      throw new Error(`Invalid subgroup at index ${index}: updatedAt is required`)
+    }
+    
+    // メンバー比率の検証
+    const memberRatios: SubgroupMemberRatio[] = sg.memberRatios.map((mr: any, mrIndex: number) => {
+      if (!mr.memberId || typeof mr.memberId !== 'string') {
+        throw new Error(`Invalid memberRatio at subgroup ${index}, memberRatio ${mrIndex}: memberId is required`)
+      }
+      if (typeof mr.ratio !== 'number' || mr.ratio <= 0) {
+        throw new Error(`Invalid memberRatio at subgroup ${index}, memberRatio ${mrIndex}: ratio must be a positive number`)
+      }
+      
+      return {
+        memberId: mr.memberId,
+        ratio: mr.ratio
+      }
+    })
+    
+    return {
+      id: sg.id,
+      name: sg.name,
+      memberRatios,
+      createdAt: sg.createdAt,
+      updatedAt: sg.updatedAt
+    }
+  })
+  
   // Tripオブジェクトの構築
   return {
     tripId: data.tripId,
@@ -163,6 +213,7 @@ export function validateAndConvertTrip(data: any): Trip {
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
     members,
-    receipts
+    receipts,
+    subgroups
   }
 }

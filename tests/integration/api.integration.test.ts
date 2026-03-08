@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { onRequestPost } from '../../functions/api/trips/index'
+import { onRequestPost, onRequestGet as onRequestGetTrips } from '../../functions/api/trips/index'
 import { onRequestGet, onRequestPut, onRequestDelete } from '../../functions/api/trips/[tripId]'
 import { Env } from '../../shared/types/env'
 import { Trip } from '../../shared/types/trip'
@@ -32,9 +32,21 @@ class MockKVNamespace {
     this.store.delete(key)
   }
 
+  async list(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+    const keys: Array<{ name: string }> = []
+    const prefix = options?.prefix || ''
+    
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        keys.push({ name: key })
+      }
+    }
+    
+    return { keys }
+  }
+
   // Unused methods for KVNamespace interface
   getWithMetadata(): Promise<any> { throw new Error('Not implemented') }
-  list(): Promise<any> { throw new Error('Not implemented') }
 }
 
 describe('API Integration Tests', () => {
@@ -135,7 +147,7 @@ describe('API Integration Tests', () => {
         ...createdTrip,
         members: [
           ...createdTrip.members,
-          { id: 'm2', name: '高橋', createdAt: new Date().toISOString() }
+          { id: 'm2', name: '高橋', defaultRatio: 100, createdAt: new Date().toISOString() }
         ]
       }
 
@@ -311,7 +323,8 @@ describe('API Integration Tests', () => {
           body: JSON.stringify({
             tripName: '更新された旅行',
             members: [],
-            receipts: []
+            receipts: [],
+            subgroups: []
           })
         })
 
@@ -384,7 +397,7 @@ describe('API Integration Tests', () => {
         ...createdTrip,
         members: [
           ...createdTrip.members,
-          { id: 'm3', name: '加藤', createdAt: new Date().toISOString() }
+          { id: 'm3', name: '加藤', defaultRatio: 100, createdAt: new Date().toISOString() }
         ]
       }
 
@@ -442,6 +455,142 @@ describe('API Integration Tests', () => {
         params: { tripId: createdTrip.tripId }
       })
       expect(getAfterDeleteResponse.status).toBe(404)
+    })
+  })
+
+  describe('GET /api/trips - 旅行一覧取得 (要件 1.1)', () => {
+    it('should return empty list when no trips exist', async () => {
+      const request = new Request('http://localhost/api/trips', {
+        method: 'GET'
+      })
+
+      const response = await onRequestGetTrips({ request, env })
+      expect(response.status).toBe(200)
+
+      const result = await response.json()
+      expect(result.trips).toEqual([])
+    })
+
+    it('should return list of trips sorted by createdAt descending', async () => {
+      // 複数の旅行を作成
+      const trip1Request = new Request('http://localhost/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripName: '伊豆旅行',
+          members: [{ name: '山田' }, { name: '鈴木' }]
+        })
+      })
+
+      const trip1Response = await onRequestPost({ request: trip1Request, env })
+      const trip1: Trip = await trip1Response.json()
+
+      // 少し待機して異なるタイムスタンプを確保
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      const trip2Request = new Request('http://localhost/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripName: '京都旅行',
+          members: [{ name: '佐藤' }]
+        })
+      })
+
+      const trip2Response = await onRequestPost({ request: trip2Request, env })
+      const trip2: Trip = await trip2Response.json()
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      const trip3Request = new Request('http://localhost/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripName: '沖縄旅行',
+          members: [{ name: '田中' }, { name: '中村' }, { name: '高橋' }]
+        })
+      })
+
+      const trip3Response = await onRequestPost({ request: trip3Request, env })
+      const trip3: Trip = await trip3Response.json()
+
+      // 旅行一覧を取得
+      const listRequest = new Request('http://localhost/api/trips', {
+        method: 'GET'
+      })
+
+      const listResponse = await onRequestGetTrips({ request: listRequest, env })
+      expect(listResponse.status).toBe(200)
+
+      const result = await listResponse.json()
+      expect(result.trips).toHaveLength(3)
+
+      // 作成日時降順でソートされていることを確認
+      expect(result.trips[0].tripId).toBe(trip3.tripId)
+      expect(result.trips[0].tripName).toBe('沖縄旅行')
+      expect(result.trips[0].memberCount).toBe(3)
+      expect(result.trips[0].createdAt).toBe(trip3.createdAt)
+
+      expect(result.trips[1].tripId).toBe(trip2.tripId)
+      expect(result.trips[1].tripName).toBe('京都旅行')
+      expect(result.trips[1].memberCount).toBe(1)
+      expect(result.trips[1].createdAt).toBe(trip2.createdAt)
+
+      expect(result.trips[2].tripId).toBe(trip1.tripId)
+      expect(result.trips[2].tripName).toBe('伊豆旅行')
+      expect(result.trips[2].memberCount).toBe(2)
+      expect(result.trips[2].createdAt).toBe(trip1.createdAt)
+    })
+
+    it('should not include deleted trips in the list', async () => {
+      // 2つの旅行を作成
+      const trip1Request = new Request('http://localhost/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripName: '北海道旅行',
+          members: [{ name: '山本' }]
+        })
+      })
+
+      const trip1Response = await onRequestPost({ request: trip1Request, env })
+      const trip1: Trip = await trip1Response.json()
+
+      const trip2Request = new Request('http://localhost/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripName: '九州旅行',
+          members: [{ name: '小林' }]
+        })
+      })
+
+      const trip2Response = await onRequestPost({ request: trip2Request, env })
+      const trip2: Trip = await trip2Response.json()
+
+      // 1つ目の旅行を削除
+      const deleteRequest = new Request(`http://localhost/api/trips/${trip1.tripId}`, {
+        method: 'DELETE'
+      })
+
+      await onRequestDelete({
+        request: deleteRequest,
+        env,
+        params: { tripId: trip1.tripId }
+      })
+
+      // 旅行一覧を取得
+      const listRequest = new Request('http://localhost/api/trips', {
+        method: 'GET'
+      })
+
+      const listResponse = await onRequestGetTrips({ request: listRequest, env })
+      expect(listResponse.status).toBe(200)
+
+      const result = await listResponse.json()
+      expect(result.trips).toHaveLength(1)
+      expect(result.trips[0].tripId).toBe(trip2.tripId)
+      expect(result.trips[0].tripName).toBe('九州旅行')
     })
   })
 })

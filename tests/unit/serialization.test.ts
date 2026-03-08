@@ -13,11 +13,13 @@ describe('Serialization', () => {
       {
         id: 'm1',
         name: '山田',
+        defaultRatio: 100,
         createdAt: '2026-03-08T10:00:00.000Z'
       },
       {
         id: 'm2',
         name: '鈴木',
+        defaultRatio: 100,
         createdAt: '2026-03-08T10:00:00.000Z'
       }
     ],
@@ -37,7 +39,8 @@ describe('Serialization', () => {
         createdAt: '2026-03-08T12:00:00.000Z',
         updatedAt: '2026-03-08T12:00:00.000Z'
       }
-    ]
+    ],
+    subgroups: []
   }
 
   describe('serializeTrip', () => {

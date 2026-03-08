@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AdminPage from './pages/AdminPage'
 import TripPage from './pages/TripPage'
+import SubgroupManagementPage from './pages/SubgroupManagementPage'
 import ReceiptInputPage from './pages/ReceiptInputPage'
 import ReceiptListPage from './pages/ReceiptListPage'
 import ReceiptEditPage from './pages/ReceiptEditPage'
@@ -22,6 +23,9 @@ function Router() {
       
       {/* 旅行ページ - 旅行の詳細とナビゲーション */}
       <Route path="/trip/:tripId" element={<TripPage />} />
+      
+      {/* サブグループ管理ページ - サブグループの登録・編集・削除 */}
+      <Route path="/trip/:tripId/subgroups" element={<SubgroupManagementPage />} />
       
       {/* レシート入力ページ - 新規レシート作成 */}
       <Route path="/trip/:tripId/receipt/new" element={<ReceiptInputPage />} />

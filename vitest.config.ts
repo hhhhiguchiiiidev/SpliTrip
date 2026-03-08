@@ -7,7 +7,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts']
+    setupFiles: ['./tests/setup.ts'],
+    // エラー出力を制限
+    silent: false,
+    reporters: ['verbose'],
+    // エラー時に即座に停止
+    bail: 1
   },
   resolve: {
     alias: {

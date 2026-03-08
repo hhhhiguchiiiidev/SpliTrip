@@ -359,13 +359,13 @@
     - _要件: 全体_
 
 - [-] 20. Cloudflare Pagesへの本番デプロイ（手動操作）
-  - [-] 20.1 GitHubへのコードプッシュ
+  - [x] 20.1 GitHubへのコードプッシュ
     - すべての変更をコミット
     - mainブランチにプッシュ
     - GitHubリポジトリで変更を確認
     - _要件: 全体_
   
-  - [ ] 20.2 Cloudflare Pagesプロジェクトの作成
+  - [x] 20.2 Cloudflare Pagesプロジェクトの作成
     - Cloudflare Dashboardにログイン（https://dash.cloudflare.com/）
     - 「Workers & Pages」→「Create application」→「Pages」→「Connect to Git」を選択
     - GitHubアカウントを接続
@@ -373,7 +373,7 @@
     - 「Begin setup」をクリック
     - _要件: 全体_
   
-  - [ ] 20.3 ビルド設定の構成
+  - [x] 20.3 ビルド設定の構成
     - Project name: `splitrip`
     - Production branch: `main`
     - Build command: `npm run build`
@@ -381,14 +381,14 @@
     - 「Save and Deploy」をクリック
     - _要件: 全体_
   
-  - [ ] 20.4 環境変数の設定
+  - [x] 20.4 環境変数の設定
     - デプロイ完了後、「Settings」→「Environment variables」に移動
     - 「Add variable」をクリック
     - 変数名: `NODE_VERSION`、値: `18`
     - 「Save」をクリック
     - _要件: 全体_
   
-  - [ ] 20.5 KVバインディングの設定
+  - [x] 20.5 KVバインディングの設定
     - 「Settings」→「Functions」に移動
     - 「KV namespace bindings」セクションで「Add binding」をクリック
     - Variable name: `TRIPS_KV`

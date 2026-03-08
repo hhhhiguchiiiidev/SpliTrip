@@ -6,6 +6,29 @@ import { Member } from '../../../shared/types/member'
 import { validateTripName, validateMemberName } from '../../../shared/utils/validation'
 
 /**
+ * GET /api/trips
+ * 旅行一覧取得エンドポイント
+ * 要件: 1.1
+ */
+export async function onRequestGet(context: { request: Request; env: Env }) {
+  try {
+    const repository = new TripRepository(context.env.TRIPS_KV)
+    const trips = await repository.list()
+    
+    return new Response(JSON.stringify({ trips }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  } catch (error) {
+    console.error('Error listing trips:', error)
+    return new Response(
+      JSON.stringify({ error: 'サーバーエラーが発生しました' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+}
+
+/**
  * POST /api/trips
  * 新規旅行作成エンドポイント
  * 要件: 1.1, 1.2, 9.1
@@ -42,6 +65,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         members.push({
           id: generateMemberId(i),
           name: memberData.name,
+          defaultRatio: 100, // デフォルト値（要件 3.2, 9.1）
           createdAt: new Date().toISOString()
         })
       }
@@ -55,7 +79,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       members,
-      receipts: []
+      receipts: [],
+      subgroups: [] // デフォルト値（要件 9.2）
     }
     
     // KVに保存（要件 6.1, 6.2）

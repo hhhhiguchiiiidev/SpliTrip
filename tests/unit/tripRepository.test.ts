@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { TripRepository } from '../../shared/repository/tripRepository'
 import { Trip } from '../../shared/types/trip'
+import type { KVNamespace } from '@cloudflare/workers-types'
 
 // Mock KVNamespace for testing
-class MockKVNamespace implements KVNamespace {
+class MockKVNamespace {
   private store: Map<string, string> = new Map()
 
   async get(key: string): Promise<string | null> {
@@ -18,9 +19,18 @@ class MockKVNamespace implements KVNamespace {
     this.store.delete(key)
   }
 
-  // Unused methods for KVNamespace interface
-  getWithMetadata(): Promise<any> { throw new Error('Not implemented') }
-  list(): Promise<any> { throw new Error('Not implemented') }
+  async list(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+    const keys: Array<{ name: string }> = []
+    const prefix = options?.prefix || ''
+    
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        keys.push({ name: key })
+      }
+    }
+    
+    return { keys }
+  }
 }
 
 describe('TripRepository', () => {
@@ -37,15 +47,17 @@ describe('TripRepository', () => {
       {
         id: 'm1',
         name: '山田',
+        defaultRatio: 100,
         createdAt: '2026-03-08T10:00:00.000Z'
       }
     ],
-    receipts: []
+    receipts: [],
+    subgroups: []
   }
 
   beforeEach(() => {
     mockKV = new MockKVNamespace()
-    repository = new TripRepository(mockKV)
+    repository = new TripRepository(mockKV as any)
   })
 
   describe('save', () => {
@@ -100,6 +112,82 @@ describe('TripRepository', () => {
       const retrieved = await repository.get(sampleTrip.tripId)
       
       expect(retrieved).toEqual(sampleTrip)
+    })
+  })
+
+  describe('list', () => {
+    it('should return empty array when no trips exist', async () => {
+      const trips = await repository.list()
+      
+      expect(trips).toEqual([])
+    })
+
+    it('should return single trip as TripListItem', async () => {
+      await repository.save(sampleTrip)
+      
+      const trips = await repository.list()
+      
+      expect(trips).toHaveLength(1)
+      expect(trips[0]).toEqual({
+        tripId: sampleTrip.tripId,
+        tripName: sampleTrip.tripName,
+        memberCount: 1,
+        createdAt: sampleTrip.createdAt
+      })
+    })
+
+    it('should return multiple trips sorted by createdAt descending', async () => {
+      const trip1: Trip = {
+        ...sampleTrip,
+        tripId: 'trip_20260308_001',
+        tripName: '旅行1',
+        createdAt: '2026-03-08T10:00:00.000Z',
+        members: [sampleTrip.members[0], sampleTrip.members[0]]
+      }
+      
+      const trip2: Trip = {
+        ...sampleTrip,
+        tripId: 'trip_20260309_002',
+        tripName: '旅行2',
+        createdAt: '2026-03-09T10:00:00.000Z',
+        members: [sampleTrip.members[0]]
+      }
+      
+      const trip3: Trip = {
+        ...sampleTrip,
+        tripId: 'trip_20260307_003',
+        tripName: '旅行3',
+        createdAt: '2026-03-07T10:00:00.000Z',
+        members: [sampleTrip.members[0], sampleTrip.members[0], sampleTrip.members[0]]
+      }
+      
+      await repository.save(trip1)
+      await repository.save(trip2)
+      await repository.save(trip3)
+      
+      const trips = await repository.list()
+      
+      expect(trips).toHaveLength(3)
+      // 作成日時降順: trip2 (3/9) -> trip1 (3/8) -> trip3 (3/7)
+      expect(trips[0].tripId).toBe('trip_20260309_002')
+      expect(trips[0].memberCount).toBe(1)
+      expect(trips[1].tripId).toBe('trip_20260308_001')
+      expect(trips[1].memberCount).toBe(2)
+      expect(trips[2].tripId).toBe('trip_20260307_003')
+      expect(trips[2].memberCount).toBe(3)
+    })
+
+    it('should skip invalid trip data and continue', async () => {
+      await repository.save(sampleTrip)
+      
+      // 無効なデータを直接KVに保存
+      await mockKV.put('trip:invalid', 'invalid json')
+      
+      const trips = await repository.list()
+      
+      // 有効な旅行のみが返される
+      expect(trips).toHaveLength(1)
+      expect(trips[0].tripId).toBe(sampleTrip.tripId)
     })
   })
 })

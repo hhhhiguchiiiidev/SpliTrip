@@ -1,4 +1,5 @@
 import { Trip } from '../types/trip'
+import { TripListItem } from '../types/tripListItem'
 import { serializeTrip, deserializeTrip } from '../utils/serialization'
 
 /**
@@ -46,5 +47,43 @@ export class TripRepository {
   async delete(tripId: string): Promise<void> {
     const key = `trip:${tripId}`
     await this.kv.delete(key)
+  }
+  
+  /**
+   * すべての旅行のリストを取得
+   * @returns 旅行リスト（作成日時降順）
+   */
+  async list(): Promise<TripListItem[]> {
+    // KVから'trip:'プレフィックスを持つすべてのキーを取得
+    const listResult = await this.kv.list({ prefix: 'trip:' })
+    
+    // 各キーから旅行データを取得してTripListItemに変換
+    const tripListItems: TripListItem[] = []
+    
+    for (const key of listResult.keys) {
+      const json = await this.kv.get(key.name)
+      
+      if (json) {
+        try {
+          const trip = deserializeTrip(json)
+          tripListItems.push({
+            tripId: trip.tripId,
+            tripName: trip.tripName,
+            memberCount: trip.members.length,
+            createdAt: trip.createdAt
+          })
+        } catch (error) {
+          console.error(`Failed to deserialize trip ${key.name}:`, error)
+          // エラーが発生した旅行はスキップして続行
+        }
+      }
+    }
+    
+    // 作成日時降順でソート
+    tripListItems.sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+    
+    return tripListItems
   }
 }

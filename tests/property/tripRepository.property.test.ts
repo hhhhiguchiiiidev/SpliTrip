@@ -5,7 +5,7 @@ import { Trip } from '../../shared/types/trip'
 import { Member } from '../../shared/types/member'
 
 // Mock KVNamespace for testing
-class MockKVNamespace implements KVNamespace {
+class MockKVNamespace {
   private store: Map<string, string> = new Map()
 
   async get(key: string): Promise<string | null> {
@@ -20,9 +20,18 @@ class MockKVNamespace implements KVNamespace {
     this.store.delete(key)
   }
 
-  // Unused methods for KVNamespace interface
-  getWithMetadata(): Promise<any> { throw new Error('Not implemented') }
-  list(): Promise<any> { throw new Error('Not implemented') }
+  async list(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+    const keys: Array<{ name: string }> = []
+    const prefix = options?.prefix || ''
+    
+    for (const [key] of this.store.entries()) {
+      if (key.startsWith(prefix)) {
+        keys.push({ name: key })
+      }
+    }
+    
+    return { keys }
+  }
 }
 
 describe('TripRepository Property Tests', () => {
@@ -54,7 +63,8 @@ describe('TripRepository Property Tests', () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               members: [],
-              receipts: []
+              receipts: [],
+              subgroups: []
             }
 
             // 保存
@@ -102,7 +112,8 @@ describe('TripRepository Property Tests', () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               members: [],
-              receipts: []
+              receipts: [],
+              subgroups: []
             }
 
             // メンバーを追加
@@ -112,6 +123,7 @@ describe('TripRepository Property Tests', () => {
               const member: Member = {
                 id: memberId,
                 name: memberNames[i],
+                defaultRatio: 100,
                 createdAt: new Date().toISOString()
               }
               trip.members.push(member)
@@ -167,7 +179,8 @@ describe('TripRepository Property Tests', () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               members: [],
-              receipts: []
+              receipts: [],
+              subgroups: []
             }
 
             // 初回保存
@@ -221,7 +234,8 @@ describe('TripRepository Property Tests', () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               members: [],
-              receipts: []
+              receipts: [],
+              subgroups: []
             }
 
             // 保存
@@ -237,6 +251,152 @@ describe('TripRepository Property Tests', () => {
             // 削除後の取得はnullを返すべき
             const afterDelete = await repository.get(trip.tripId)
             expect(afterDelete).toBeNull()
+          }
+        ),
+        { numRuns: 100 }
+      )
+    })
+  })
+
+  // Feature: trip-management-enhancements, Property 5: 旅行削除のラウンドトリップ
+  describe('Property 5: 旅行削除のラウンドトリップ', () => {
+    it('任意の旅行に対して、旅行を作成してストレージに保存し、その後削除した場合、ストレージから旅行が削除されていなければならない', async () => {
+      /**
+       * Validates: Requirements 2.3
+       */
+      const tripNameArbitrary = fc.string({ minLength: 1, maxLength: 100 })
+      const memberCountArbitrary = fc.integer({ min: 0, max: 20 })
+
+      await fc.assert(
+        fc.asyncProperty(
+          tripNameArbitrary,
+          memberCountArbitrary,
+          async (tripName, memberCount) => {
+            // 各プロパティテストの実行ごとに新しいリポジトリを作成
+            const testMockKV = new MockKVNamespace()
+            const testRepository = new TripRepository(testMockKV)
+            
+            // 旅行を作成
+            const trip: Trip = {
+              tripId: `trip_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+              tripName,
+              version: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              members: Array.from({ length: memberCount }, (_, i) => ({
+                id: `m${i + 1}`,
+                name: `Member ${i + 1}`,
+                defaultRatio: 100,
+                createdAt: new Date().toISOString()
+              })),
+              receipts: [],
+              subgroups: []
+            }
+
+            // ストレージに保存
+            await testRepository.save(trip)
+
+            // 保存されたことを確認
+            const savedTrip = await testRepository.get(trip.tripId)
+            expect(savedTrip).not.toBeNull()
+            expect(savedTrip!.tripId).toBe(trip.tripId)
+
+            // 旅行を削除
+            await testRepository.delete(trip.tripId)
+
+            // 削除後、ストレージから旅行が削除されていることを確認
+            const deletedTrip = await testRepository.get(trip.tripId)
+            expect(deletedTrip).toBeNull()
+
+            // list()メソッドでも削除された旅行が表示されないことを確認
+            const tripList = await testRepository.list()
+            const foundInList = tripList.find(item => item.tripId === trip.tripId)
+            expect(foundInList).toBeUndefined()
+          }
+        ),
+        { numRuns: 100 }
+      )
+    })
+  })
+
+  // Feature: trip-management-enhancements, Property 3: 旅行リストのソート順序
+  describe('Property 3: 旅行リストのソート順序', () => {
+    it('任意の旅行リストに対して、旅行は作成日時の降順で並べられていなければならない', async () => {
+      /**
+       * Validates: Requirements 1.5
+       */
+      
+      // 旅行名ジェネレータ
+      const tripNameArbitrary = fc.string({ minLength: 1, maxLength: 100 })
+      
+      // 旅行配列ジェネレータ（2個以上10個以下）
+      const tripsArbitrary = fc.array(
+        fc.record({
+          tripName: tripNameArbitrary,
+          memberCount: fc.integer({ min: 0, max: 20 }),
+          // 異なる作成日時を生成するため、過去1年間のランダムな日時を生成
+          createdAt: fc.date({ 
+            min: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+            max: new Date()
+          }).map(d => d.toISOString())
+        }),
+        { minLength: 2, maxLength: 10 }
+      )
+
+      await fc.assert(
+        fc.asyncProperty(
+          tripsArbitrary,
+          async (tripData) => {
+            // 各プロパティテストの実行ごとに新しいリポジトリを作成
+            const testMockKV = new MockKVNamespace()
+            const testRepository = new TripRepository(testMockKV)
+            
+            // 各旅行データから旅行を作成して保存
+            const trips: Trip[] = []
+            
+            for (let i = 0; i < tripData.length; i++) {
+              const data = tripData[i]
+              const trip: Trip = {
+                tripId: `trip_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 8)}`,
+                tripName: data.tripName,
+                version: 1,
+                createdAt: data.createdAt,
+                updatedAt: data.createdAt,
+                members: Array.from({ length: data.memberCount }, (_, j) => ({
+                  id: `m${j + 1}`,
+                  name: `Member ${j + 1}`,
+                  defaultRatio: 100,
+                  createdAt: data.createdAt
+                })),
+                receipts: [],
+                subgroups: []
+              }
+              
+              trips.push(trip)
+              await testRepository.save(trip)
+            }
+
+            // list()メソッドを呼び出し
+            const tripList = await testRepository.list()
+
+            // 検証1: すべての旅行が返されること
+            expect(tripList).toHaveLength(trips.length)
+
+            // 検証2: 作成日時の降順でソートされていること
+            for (let i = 0; i < tripList.length - 1; i++) {
+              const currentDate = new Date(tripList[i].createdAt).getTime()
+              const nextDate = new Date(tripList[i + 1].createdAt).getTime()
+              expect(currentDate).toBeGreaterThanOrEqual(nextDate)
+            }
+
+            // 検証3: 各TripListItemが正しいデータを含むこと
+            tripList.forEach(item => {
+              const originalTrip = trips.find(t => t.tripId === item.tripId)
+              expect(originalTrip).toBeDefined()
+              expect(item.tripName).toBe(originalTrip!.tripName)
+              expect(item.memberCount).toBe(originalTrip!.members.length)
+              expect(item.createdAt).toBe(originalTrip!.createdAt)
+            })
           }
         ),
         { numRuns: 100 }

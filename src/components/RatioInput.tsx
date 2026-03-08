@@ -37,8 +37,11 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
 
   const handleFocus = (memberId: string) => {
     const ratio = getRatioForMember(memberId)
-    // フォーカス時、デフォルト値（100）なら空欄にする
-    if (ratio === 100) {
+    const member = members.find(m => m.id === memberId)
+    const defaultRatio = member?.defaultRatio ?? 100
+    
+    // フォーカス時、デフォルト値ならば空欄にする（要件: 3.5）
+    if (ratio === defaultRatio) {
       setDisplayValues(prev => ({ ...prev, [memberId]: '' }))
     } else {
       setDisplayValues(prev => ({ ...prev, [memberId]: String(ratio) }))
@@ -47,11 +50,14 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
 
   const handleBlur = (memberId: string) => {
     const currentValue = displayValues[memberId]
-    // ブラー時、空欄ならデフォルト値（100）に戻す
+    const member = members.find(m => m.id === memberId)
+    const defaultRatio = member?.defaultRatio ?? 100
+    
+    // ブラー時、空欄ならデフォルト値に戻す（要件: 3.5）
     if (!currentValue || currentValue.trim() === '') {
       const updated = ratioInputs.map(input =>
         input.memberId === memberId
-          ? { ...input, ratio: 100 }
+          ? { ...input, ratio: defaultRatio }
           : input
       )
       onChange(updated)
@@ -68,7 +74,11 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
 
   const getRatioForMember = (memberId: string): number => {
     const input = ratioInputs.find(r => r.memberId === memberId)
-    return input?.ratio ?? 100
+    if (input) return input.ratio
+    
+    // デフォルト配布比率を使用（要件: 3.5）
+    const member = members.find(m => m.id === memberId)
+    return member?.defaultRatio ?? 100
   }
 
   const getDisplayValue = (memberId: string): string => {
@@ -87,7 +97,7 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
     <div>
       <div style={{ marginBottom: '16px' }}>
         <p style={{ fontSize: '14px', color: '#666', margin: '0 0 10px 0', lineHeight: '1.5' }}>
-          各メンバーの比率を入力してください（デフォルト: 100）
+          各メンバーの比率を入力してください（メンバーのデフォルト配布比率が事前入力されています）
         </p>
         <p style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>
           合計比率: {totalRatio}
@@ -122,7 +132,7 @@ function RatioInput({ members, ratioInputs, onChange }: RatioInputProps) {
                 onChange={(e) => handleRatioChange(member.id, e.target.value)}
                 onFocus={() => handleFocus(member.id)}
                 onBlur={() => handleBlur(member.id)}
-                placeholder="100"
+                placeholder={String(member.defaultRatio)}
                 style={{
                   width: '120px',
                   padding: '10px 12px',

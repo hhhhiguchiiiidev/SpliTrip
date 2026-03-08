@@ -4,6 +4,7 @@ import { serializeTrip, deserializeTrip } from '@shared/utils/serialization'
 import { Trip } from '@shared/types/trip'
 import { Member } from '@shared/types/member'
 import { Receipt } from '@shared/types/receipt'
+import { Subgroup, SubgroupMemberRatio } from '@shared/types/subgroup'
 
 describe('Serialization Property Tests', () => {
   // Feature: splitrip-expense-tracker, Property 3: データ永続化のラウンドトリップ
@@ -13,6 +14,7 @@ describe('Serialization Property Tests', () => {
       const memberArbitrary = fc.record({
         id: fc.string({ minLength: 1, maxLength: 20 }),
         name: fc.string({ minLength: 1, maxLength: 50 }),
+        defaultRatio: fc.integer({ min: 1, max: 1000 }),
         createdAt: fc.date().map(d => d.toISOString())
       }) as fc.Arbitrary<Member>
 
@@ -50,6 +52,21 @@ describe('Serialization Property Tests', () => {
         updatedAt: fc.date().map(d => d.toISOString())
       }) as fc.Arbitrary<Receipt>
 
+      // サブグループメンバー比率ジェネレータ
+      const subgroupMemberRatioArbitrary = fc.record({
+        memberId: fc.string({ minLength: 1, maxLength: 20 }),
+        ratio: fc.integer({ min: 1, max: 1000 })
+      }) as fc.Arbitrary<SubgroupMemberRatio>
+
+      // サブグループジェネレータ
+      const subgroupArbitrary = fc.record({
+        id: fc.string({ minLength: 1, maxLength: 20 }),
+        name: fc.string({ minLength: 1, maxLength: 50 }),
+        memberRatios: fc.array(subgroupMemberRatioArbitrary, { minLength: 1, maxLength: 10 }),
+        createdAt: fc.date().map(d => d.toISOString()),
+        updatedAt: fc.date().map(d => d.toISOString())
+      }) as fc.Arbitrary<Subgroup>
+
       // 旅行ジェネレータ
       const tripArbitrary = fc.record({
         tripId: fc.string({ minLength: 1, maxLength: 50 }),
@@ -58,7 +75,8 @@ describe('Serialization Property Tests', () => {
         createdAt: fc.date().map(d => d.toISOString()),
         updatedAt: fc.date().map(d => d.toISOString()),
         members: fc.array(memberArbitrary, { minLength: 0, maxLength: 50 }),
-        receipts: fc.array(receiptArbitrary, { minLength: 0, maxLength: 500 })
+        receipts: fc.array(receiptArbitrary, { minLength: 0, maxLength: 500 }),
+        subgroups: fc.array(subgroupArbitrary, { minLength: 0, maxLength: 20 })
       }) as fc.Arbitrary<Trip>
 
       fc.assert(
@@ -90,6 +108,7 @@ describe('Serialization Property Tests', () => {
             deserializedTrip.members.forEach((member, index) => {
               expect(member.id).toBe(originalTrip.members[index].id)
               expect(member.name).toBe(originalTrip.members[index].name)
+              expect(member.defaultRatio).toBe(originalTrip.members[index].defaultRatio)
               expect(member.createdAt).toBe(originalTrip.members[index].createdAt)
             })
             
@@ -108,6 +127,17 @@ describe('Serialization Property Tests', () => {
               expect(receipt.splits).toEqual(originalReceipt.splits)
               expect(receipt.createdAt).toBe(originalReceipt.createdAt)
               expect(receipt.updatedAt).toBe(originalReceipt.updatedAt)
+            })
+            
+            // サブグループの検証
+            expect(deserializedTrip.subgroups).toHaveLength(originalTrip.subgroups.length)
+            deserializedTrip.subgroups.forEach((subgroup, index) => {
+              const originalSubgroup = originalTrip.subgroups[index]
+              expect(subgroup.id).toBe(originalSubgroup.id)
+              expect(subgroup.name).toBe(originalSubgroup.name)
+              expect(subgroup.memberRatios).toEqual(originalSubgroup.memberRatios)
+              expect(subgroup.createdAt).toBe(originalSubgroup.createdAt)
+              expect(subgroup.updatedAt).toBe(originalSubgroup.updatedAt)
             })
           }
         ),
