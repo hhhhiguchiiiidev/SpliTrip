@@ -44,11 +44,13 @@ export function validateAndConvertTrip(data: any): Trip {
   if (!Array.isArray(data.receipts)) {
     throw new Error('Invalid trip data: receipts must be an array')
   }
-  if (!Array.isArray(data.subgroups)) {
+  // 後方互換性: subgroupsがない場合は空配列を設定
+  const subgroupsData = data.subgroups !== undefined ? data.subgroups : []
+  if (!Array.isArray(subgroupsData)) {
     throw new Error('Invalid trip data: subgroups must be an array')
   }
   
-  // メンバーの変換と検証
+  // メンバーの変換と検証（後方互換性: defaultRatioがない場合は100を設定）
   const members: Member[] = data.members.map((m: any, index: number) => {
     if (!m.id || typeof m.id !== 'string') {
       throw new Error(`Invalid member at index ${index}: id is required`)
@@ -56,7 +58,9 @@ export function validateAndConvertTrip(data: any): Trip {
     if (!m.name || typeof m.name !== 'string') {
       throw new Error(`Invalid member at index ${index}: name is required`)
     }
-    if (typeof m.defaultRatio !== 'number' || m.defaultRatio <= 0) {
+    // 後方互換性: defaultRatioがない場合は100を設定
+    const defaultRatio = m.defaultRatio !== undefined ? m.defaultRatio : 100
+    if (typeof defaultRatio !== 'number' || defaultRatio <= 0) {
       throw new Error(`Invalid member at index ${index}: defaultRatio must be a positive number`)
     }
     if (!m.createdAt || typeof m.createdAt !== 'string') {
@@ -66,7 +70,7 @@ export function validateAndConvertTrip(data: any): Trip {
     return {
       id: m.id,
       name: m.name,
-      defaultRatio: m.defaultRatio,
+      defaultRatio,
       createdAt: m.createdAt
     }
   })
@@ -164,7 +168,7 @@ export function validateAndConvertTrip(data: any): Trip {
   })
   
   // サブグループの変換と検証
-  const subgroups: Subgroup[] = data.subgroups.map((sg: any, index: number) => {
+  const subgroups: Subgroup[] = subgroupsData.map((sg: any, index: number) => {
     if (!sg.id || typeof sg.id !== 'string') {
       throw new Error(`Invalid subgroup at index ${index}: id is required`)
     }
